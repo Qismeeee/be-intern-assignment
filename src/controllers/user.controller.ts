@@ -65,4 +65,71 @@ export class UserController {
       res.status(500).json({ message: 'Error deleting user', error });
     }
   }
+
+  async followUser(req: Request, res: Response) {
+  try {
+    const currentUser = req.user!;
+    const userToFollowId = parseInt(req.params.id);
+    
+    if (currentUser.id === userToFollowId) {
+      return res.status(400).json({ message: 'Cannot follow yourself' });
+    }
+    
+    const userToFollow = await this.userRepository.findOne({
+      where: { id: userToFollowId },
+      relations: ['followers']
+    });
+    
+    if (!userToFollow) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const alreadyFollowing = userToFollow.followers.some(
+      follower => follower.id === currentUser.id
+    );
+    
+    if (alreadyFollowing) {
+      return res.status(400).json({ message: 'Already following this user' });
+    }
+    userToFollow.followers.push(currentUser);
+    await this.userRepository.save(userToFollow);
+    
+    res.json({ message: 'Successfully followed user' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error following user', error });
+  }
+}
+
+async unfollowUser(req: Request, res: Response) {
+  try {
+    const currentUser = req.user!;
+    const userToUnfollowId = parseInt(req.params.id);
+    
+    const userToUnfollow = await this.userRepository.findOne({
+      where: { id: userToUnfollowId },
+      relations: ['followers']
+    });
+    
+    if (!userToUnfollow) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const following = userToUnfollow.followers.some(
+      follower => follower.id === currentUser.id
+    );
+    
+    if (!following) {
+      return res.status(400).json({ message: 'Not following this user' });
+    }
+    
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      follower => follower.id !== currentUser.id
+    );
+    await this.userRepository.save(userToUnfollow);
+    
+    res.json({ message: 'Successfully unfollowed user' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error unfollowing user', error });
+  }
+}
 }
